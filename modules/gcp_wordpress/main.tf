@@ -77,7 +77,7 @@ resource "google_compute_region_instance_group_manager" "wordpress" {
 
 
 resource "google_compute_http_health_check" "wordpress" {
-  name         = "${var.name_prefix}-health-check"
+  name         = "${var.name_prefix}-wordpress-health-check"
   request_path = "/"
 }
 
