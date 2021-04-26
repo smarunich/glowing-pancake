@@ -33,8 +33,9 @@ module "gcp_wallarm" {
   wallarm_deploy_username = var.wallarm_deploy_username
   wallarm_deploy_password = var.wallarm_deploy_password
   wallarm_api_domain      = var.wallarm_api_domain
-  wallarm_user_domain     = coalesce(var.wallarm_user_domain, module.gcp_wordpress.wordpress_ip)
+  wallarm_user_domain     = coalesce(var.wallarm_user_domain, module.gcp_wordpress.wordpress_lb_ip)
   depends_on = [
-    module.gcp_vpc
+    module.gcp_vpc,
+    module.gcp_wordpress
   ]
 }

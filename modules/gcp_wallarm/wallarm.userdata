@@ -300,13 +300,16 @@ write_files:
     9DnIZdXRjK+d45ytY6c9SqV/ienxbvjx2G3DG2kiYGfTPQOUVC+UX8KtqNEDpxOZ
     ooqMBlOXYxLJ2I9UcCu21Wj+CXJAPPbj/UZ79t59nC2yB5OmrniOFsMC
     -----END CERTIFICATE-----
+ - path: /opt/bootstrap.sh
+   owner: root:root
+   permissions: '0755' 
+   content: |
+    #!/bin/bash
+    echo "sync_blacklist:" >> /etc/wallarm/node.yaml
+    echo "  nginx_url: http://127.0.0.9/wallarm-acl" >> /etc/wallarm/node.yaml
+    mkdir /var/cache/nginx/
+    chown www-data /var/cache/nginx/
+    systemctl restart nginx
+    sed -i -Ee 's/^#(.*sync-blacklist.*)/\1/' /etc/cron.d/wallarm-node-nginx
 runcmd:
- - /usr/share/wallarm-common/addnode --force -H ${wallarm_api_domain} -u ${wallarm_deploy_username} -p '${wallarm_deploy_password}' --name `hostname`
- - 'echo "sync_blacklist:" >> /etc/wallarm/node.yaml'
- - 'echo "  nginx_url: http://127.0.0.9/wallarm-acl" >> /etc/wallarm/node.yaml'
- - mkdir /var/cache/nginx/
- - chown www-data /var/cache/nginx/
- - nginx -t
- - service nginx start
- - service nginx reload
- - [ sed, -i, -Ee, 's/^#(.*sync-blacklist.*)/\1/', /etc/cron.d/wallarm-node-nginx ]
+ - /opt/bootstrap.sh

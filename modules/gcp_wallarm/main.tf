@@ -31,8 +31,11 @@ resource "google_compute_instance_template" "wallarm" {
     subnetwork = "${var.name_prefix}-subnet-${data.google_compute_zones.available.names[0]}"
   }
 
+  # image support required for user-data https://cloud.google.com/container-optimized-os/docs/how-to/create-configure-instance
+  # shortcut for demo purposes
+
+  metadata_startup_script = "sudo apt-get update; sudo apt-get install -yq cloud-init; sudo curl -o /etc/cloud/cloud.cfg.d/wallarm.cfg  http://metadata/computeMetadata/v1/instance/attributes/user-data -H'Metadata-Flavor:Google'; sudo cloud-init -d init; sudo cloud-init -d modules --mode final; /opt/bootstrap.sh"
   metadata = {
-    # image support required https://cloud.google.com/container-optimized-os/docs/how-to/create-configure-instance
     user-data = data.template_file.wallarm_userdata.rendered
   }
 
@@ -111,25 +114,23 @@ resource "google_compute_region_health_check" "wallarm_https" {
   }
 }
 
-resource "google_compute_autoscaler" "wallarm" {
-  count  = var.az_count
-  name   = "${var.name_prefix}-wallarm-autoscaler-${data.google_compute_zones.available.names[count.index]}"
-  zone   = data.google_compute_zones.available.names[count.index]
+resource "google_compute_region_autoscaler" "wallarm" {
+  name   = "${var.name_prefix}-wallarm-autoscaler"
+  region = var.region
   target = google_compute_region_instance_group_manager.wallarm.id
 
   autoscaling_policy {
     max_replicas    = 5
-    min_replicas    = var.az_count
+    min_replicas    = 1
     cooldown_period = 120
     cpu_utilization {
-      target = 0.2
+      target = 0.4
     }
   }
 }
 
 resource "google_compute_region_backend_service" "wallarm_http" {
-  name                  = "${var.name_prefix}-wallarm-backend-service"
-  region                = var.region
+  name                  = "${var.name_prefix}-wallarm-backend-http-service"
   port_name             = "http"
   protocol              = "TCP"
   load_balancing_scheme = "EXTERNAL"
@@ -145,11 +146,11 @@ resource "google_compute_region_backend_service" "wallarm_http" {
 }
 
 resource "google_compute_region_backend_service" "wallarm_https" {
-  name                  = "${var.name_prefix}-wallarm-backend-service"
-  region                = var.region
+  name                  = "${var.name_prefix}-wallarm-backend-https-service"
   port_name             = "https"
   protocol              = "TCP"
   load_balancing_scheme = "EXTERNAL"
+
   #session_affinity      = "HTTP_COOKIE"
 
   backend {
@@ -173,7 +174,7 @@ resource "google_compute_forwarding_rule" "wallarm_http" {
   ip_address      = google_compute_address.wallarm_nlb.self_link
   ip_protocol     = "TCP"
   port_range      = "80"
-  backend_service = google_compute_region_backend_service.wallarm_http.self_link
+  backend_service = google_compute_region_backend_service.wallarm_http.id
 }
 
 
@@ -183,5 +184,5 @@ resource "google_compute_forwarding_rule" "wallarm_https" {
   ip_address      = google_compute_address.wallarm_nlb.self_link
   ip_protocol     = "TCP"
   port_range      = "443"
-  backend_service = google_compute_region_backend_service.wallarm_https.self_link
+  backend_service = google_compute_region_backend_service.wallarm_https.id
 }
